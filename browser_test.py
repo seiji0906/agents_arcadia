@@ -1,194 +1,64 @@
-import logging
-from langchain_openai import ChatOpenAI
-from agents.base_agent import BaseAgent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnableConfig
-import subprocess
-from typing import Any, Optional
+import asyncio
 import os
-from dotenv import load_dotenv
-from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, ValidationError
-import json
 
-# ログの設定
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("browser_test.log"),
-        logging.StreamHandler()
-    ]
-)
+# ActionModel / RegisteredAction / ActionRegistry が必要なら、以下のようにまとめてインポート
+# from browser_use.controller.registry.views import (
+#     ActionModel,
+#     RegisteredAction,
+#     ActionRegistry
+# )
 
-load_dotenv()
+from browser_use import Agent, Controller, Browser, BrowserConfig
+from browser_use.browser.context import BrowserContext
+from langchain_openai import ChatOpenAI
 
-class CommandResult(BaseModel):
-    command: str
+# Controller を初期化
+controller = Controller()
 
-# ターミナルコマンド実行ツール
-class TerminalTool:
-    def __init__(self):
-        self.name = "terminal"
+@controller.registry.action('take_screenshot', requires_browser=True)
+async def take_screenshot(browser: BrowserContext, path: str = "screenshot.png"):
+    """
+    現在のタブのスクリーンショットを撮るアクション。
+    """
+    # フォルダが存在しない場合は作成
+    os.makedirs("screenshot", exist_ok=True)
 
-    def run(self, command: str) -> str:
-        logging.info(f"Executing command: {command}")
-        try:
-            process = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
-            logging.info(f"Command output: {process.stdout}")
-            return process.stdout
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Command error: {e.stderr}")
-            return e.stderr
+    page = await browser.get_current_page()
+    screenshot_path = os.path.join("screenshot", path)
+    await page.screenshot(path=screenshot_path)
+    print(f"スクリーンショットを {screenshot_path} に保存しました。")
 
-# ターミナルコマンド実行エージェント
-class TerminalAgent(BaseAgent):
-    def __init__(self, llm, tools=None):
-        super().__init__(llm, tools)
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", "あなたはターミナルコマンドを実行するエージェントです。ユーザーの指示に従って、適切なターミナルコマンドを生成し、以下のJSON形式で出力してください。\n\n```json\n{{\"command\": \"生成するコマンド\"}}\n```"),
-            MessagesPlaceholder(variable_name="messages")
-        ])
-
-    def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
-        logging.info("TerminalAgent.run開始")
-        logging.debug(f"Input: {input}")
-
-        try:
-            logging.debug("フォーマット前のメッセージ内容:")
-            for msg in input:
-                logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
-
-            messages = self.prompt.format_messages(messages=input)
-            logging.debug(f"Formatted messages: {messages}")
-        except KeyError as e:
-            logging.error(f"メッセージのフォーマット中にキーエラーが発生しました: {e}")
-            return ""
-
-        try:
-            response = self.llm.invoke(messages, config)
-            logging.info(f"LLMからのレスポンス: {response.content}")
-        except Exception as e:
-            logging.error(f"LLMの呼び出し中にエラーが発生しました: {e}")
-            return ""
-
-        content = response.content.strip()
-        logging.debug(f"レスポンス内容（トリム後）: {content}")
-
-        # JSON部分のみを抽出
-        start_index = content.find('{')
-        end_index = content.rfind('}') + 1
-
-        if start_index != -1 and end_index > start_index:
-            json_string = content[start_index:end_index]
-            logging.debug(f"抽出されたJSON文字列: {json_string}")
-        else:
-            logging.error("JSON形式の文字列が見つかりませんでした。")
-            return ""
-
-        try:
-            data = json.loads(json_string)
-            logging.debug(f"パースされたデータ: {data}")
-            command_result = CommandResult(**data)
-            logging.info(f"抽出されたコマンド: {command_result.command}")
-            return command_result.command
-        except (json.JSONDecodeError, ValidationError) as e:
-            logging.error(f"JSONのパース中にエラーが発生しました: {e}")
-            logging.error(f"パース失敗した文字列: {json_string}")
-            return ""
-
-    async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
-        logging.info("TerminalAgent.arun開始")
-        logging.debug(f"Input: {input}")
-
-        try:
-            logging.debug("フォーマット前のメッセージ内容 (非同期):")
-            for msg in input:
-                logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
-
-            messages = self.prompt.format_messages(messages=input)
-            logging.debug(f"Formatted messages (async): {messages}")
-        except KeyError as e:
-            logging.error(f"メッセージのフォーマット中にキーエラーが発生しました (非同期): {e}")
-            return ""
-
-        try:
-            response = await self.llm.ainvoke(messages, config)
-            logging.info(f"LLMからのレスポンス (非同期): {response.content}")
-        except Exception as e:
-            logging.error(f"LLMの非同期呼び出し中にエラーが発生しました: {e}")
-            return ""
-
-        content = response.content.strip()
-        logging.debug(f"レスポンス内容（トリム後, 非同期）: {content}")
-
-        # JSON部分のみを抽出
-        start_index = content.find('{')
-        end_index = content.rfind('}') + 1
-
-        if start_index != -1 and end_index > start_index:
-            json_string = content[start_index:end_index]
-            logging.debug(f"抽出されたJSON文字列 (非同期): {json_string}")
-        else:
-            logging.error("JSON形式の文字列が見つかりませんでした。 (非同期)")
-            return ""
-
-        try:
-            data = json.loads(json_string)
-            logging.debug(f"パースされたデータ (非同期): {data}")
-            command_result = CommandResult(**data)
-            logging.info(f"抽出されたコマンド (非同期): {command_result.command}")
-            return command_result.command
-        except (json.JSONDecodeError, ValidationError) as e:
-            logging.error(f"JSONのパース中にエラーが発生しました (非同期): {e}")
-            logging.error(f"パース失敗した文字列: {json_string}")
-            return ""
+    return {
+        "extracted_content": f"{screenshot_path} に保存完了",
+        "include_in_memory": True
+    }
 
 async def main():
-    logging.info("main関数開始")
-    # LLMの準備
-    try:
-        llm = ChatOpenAI(
-            temperature=0,
-            model="gpt-4o",
-            openai_api_key=os.environ.get("OPENAI_API_KEY"),
+    # ブラウザの設定（例として headless=False, keep_open=True）
+    browser = Browser(
+        config=BrowserConfig(
+            headless=False,
+            # keep_open=True,
         )
-        logging.info("LLMの初期化に成功しました。")
-    except Exception as e:
-        logging.error(f"LLMの初期化中にエラーが発生しました: {e}")
-        return
+    )
 
-    # ツールの準備
-    terminal_tool = TerminalTool()
-    tools = [terminal_tool]
-    logging.info("ツールの準備が完了しました。")
+    # タスク例
+    target_url = "https://moji.onl.jp/"
+    task = f"指定されたURL '{target_url}' にアクセスし、入力欄に「あいうえお」と入力し、文字数のボタンを押してください。また、その結果をスクリーンショットで保存してください。画像の名前は、'moji_result.png'としてください。"
 
-    # エージェントの準備
-    terminal_agent = TerminalAgent(llm, tools)
-    logging.info("TerminalAgentの準備が完了しました。")
+    # LLMのセットアップ
+    model = ChatOpenAI(model='gpt-4o')
 
-    # 実行するコマンドの指示
-    command_instruction = "現在のディレクトリの内容を表示するコマンドを実行してください。"
-    logging.info(f"コマンド指示: {command_instruction}")
+    # Agent に controller を渡す（controller に定義したアクションが呼び出されます）
+    agent = Agent(
+        task=task,
+        llm=model,
+        browser=browser,
+        controller=controller,
+    )
 
-    # エージェントにコマンドを生成させる
-    try:
-        generated_command = terminal_agent.run([HumanMessage(content=command_instruction)])
-        logging.info(f"生成されたコマンド: {generated_command}")
-    except Exception as e:
-        logging.error(f"コマンド生成中にエラーが発生しました: {e}")
-        generated_command = ""
-
-    # ターミナルコマンドを実行
-    if generated_command:
-        try:
-            result = terminal_tool.run(generated_command)
-            logging.info(f"コマンド実行結果:\n{result}")
-        except Exception as e:
-            logging.error(f"コマンド実行中にエラーが発生しました: {e}")
-    else:
-        logging.warning("生成されたコマンドが空です。実行をスキップします。")
+    await agent.run()
+    await browser.close()
 
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
