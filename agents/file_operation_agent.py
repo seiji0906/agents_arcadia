@@ -19,21 +19,21 @@ class FileOperationAgent(BaseAgent):
         return self._process_file_operation(raw_text)
 
     def _process_file_operation(self, raw_text: str) -> str:
-        # JSONとしてパースを試みる
-        try:
-            data = json.loads(raw_text)
-        except json.JSONDecodeError as e:
-            return f"JSONのパースに失敗しました: {e}"
+        # ファイルパスとコード内容をテキストから抽出
+        file_path = None
+        code_content = None
 
-        # 必要なキーの存在確認などを行う
-        action = data.get("action")
-        file_path = data.get("file_path")
-        code_content = data.get("code", "")
+        lines = raw_text.splitlines()
+        for line in lines:
+            if line.startswith("ファイルパス:"):
+                file_path = line.split(":", 1)[1].strip()
+            elif line.startswith("コード:"):
+                code_content = line.split(":", 1)[1].strip()
+
         if not file_path or not code_content:
-            return "JSONの中にfile_pathやcodeが含まれていません。"
+            return "出力テキストからファイルパスまたはコードの内容を抽出できませんでした。"
 
-        if action not in ("create", "modify"):
-            return f"actionフィールドの値が不正です: {action}"
+        action = "modify" # デフォルトでmodifyとする
 
         # 実際にファイルへ書き込むなどの処理
         try:
