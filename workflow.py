@@ -13,7 +13,8 @@ from nodes.nodes import (
     coding_node,
     acoding_node,
     file_operation_node,
-    should_continue
+    should_continue,
+    afile_operation_node
 )
 
 def build_workflow() -> StateGraph:
@@ -24,7 +25,7 @@ def build_workflow() -> StateGraph:
     workflow.add_node("planning", RunnableLambda(planning_node, afunc=aplanning_node))
     workflow.add_node("review", RunnableLambda(review_node, afunc=areview_node))
     workflow.add_node("coding", RunnableLambda(coding_node, afunc=acoding_node))
-    workflow.add_node("file_operation", RunnableLambda(file_operation_node))
+    workflow.add_node("file_operation", RunnableLambda(file_operation_node, afunc=afile_operation_node))
 
     # エントリーポイント
     workflow.set_entry_point("read_code")

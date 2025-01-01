@@ -120,12 +120,33 @@ def file_operation_node(state: AgentState, config: RunnableConfig):
     agent: FileOperationAgent = config["configurable"]["file_operation_agent"]
     coding_result = state.get("coding_result", {})
     raw_text = coding_result.get("code", "")
+    file_path = coding_result.get("file_path")
 
     if not raw_text.strip():
         return {"file_operation_result": "コーディングエージェントの出力が空です。"}
 
+    if not file_path:
+        return {"file_operation_result": "ファイルパスが指定されていません。"}
+
     # 同期呼び出し
-    result = agent.run(raw_text, config)
+    result = agent.run(f'{{"file_path": "{file_path}", "code": "{raw_text}"}}', config)
+    return {"file_operation_result": result}
+
+async def afile_operation_node(state: AgentState, config: RunnableConfig):
+    """非同期版ファイル操作ノード"""
+    agent: FileOperationAgent = config["configurable"]["file_operation_agent"]
+    coding_result = state.get("coding_result", {})
+    raw_text = coding_result.get("code", "")
+    file_path = coding_result.get("file_path")
+
+    if not raw_text.strip():
+        return {"file_operation_result": "コーディングエージェントの出力が空です。"}
+
+    if not file_path:
+        return {"file_operation_result": "ファイルパスが指定されていません。"}
+
+    # 非同期呼び出し
+    result = await agent.arun(f'{{"file_path": "{file_path}", "code": "{raw_text}"}}', config)
     return {"file_operation_result": result}
 
 def should_continue(state: AgentState) -> str:
