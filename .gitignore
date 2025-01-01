@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+generate/
+.cursorignore
+*.txt
+.env
