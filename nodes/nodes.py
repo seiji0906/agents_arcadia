@@ -13,6 +13,8 @@ from models.code_result import CodeResult
 from typing import Any, Optional
 from pydantic import ValidationError
 import json
+from agents.terminal_agent import TerminalAgent
+from agents.browser_agent import BrowserAgent
 
 def read_code_node(state: AgentState, config: RunnableConfig):
     """
@@ -159,3 +161,65 @@ def should_continue(state: AgentState) -> str:
         return "review"
     else:
         return "coding" 
+
+def terminal_node(state: AgentState, config: RunnableConfig):
+    """
+    TerminalAgent を呼び出すノード。
+    """
+    # TerminalAgent の準備
+    agent: TerminalAgent = config["configurable"]["terminal_agent"]
+
+    # state["messages"] からメッセージリストをコピー
+    base_messages = state.get("messages", [])
+    messages_to_pass = list(base_messages)
+
+    # TerminalAgent 用に追加の HumanMessage を加える例
+    messages_to_pass.append(
+        HumanMessage(content="動作確認をするためのコマンドを生成してください。")
+    )
+
+    # TerminalAgent.run にメッセージを渡す
+    command = agent.run(messages_to_pass, config)
+
+    return {
+        # 次以降のノードに渡すため、更新した messages_to_pass を返す
+        "messages": messages_to_pass,
+        "terminal_command": command
+    }
+
+async def aterminal_node(state: AgentState, config: RunnableConfig):
+    """
+    TerminalAgent の非同期呼び出しノード。
+    """
+    agent: TerminalAgent = config["configurable"]["terminal_agent"]
+    messages = state.get("messages", [])
+    command = await agent.arun(messages, config)
+    return {
+        "messages": messages,
+        "terminal_command": command
+    }
+
+def browser_node(state: AgentState, config: RunnableConfig):
+    """
+    BrowserAgent を呼び出すノード。
+    """
+    agent: BrowserAgent = config["configurable"]["browser_agent"]
+    messages = state.get("messages", [])
+    # ここでは任意の入力を想定
+    result = agent.run(messages, config)
+    return {
+        "messages": messages,
+        "browser_result": result
+    }
+
+async def abrowser_node(state: AgentState, config: RunnableConfig):
+    """
+    BrowserAgent の非同期呼び出しノード。
+    """
+    agent: BrowserAgent = config["configurable"]["browser_agent"]
+    messages = state.get("messages", [])
+    result = await agent.arun(messages, config)
+    return {
+        "messages": messages,
+        "browser_result": result
+    } 

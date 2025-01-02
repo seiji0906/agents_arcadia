@@ -14,7 +14,11 @@ from nodes.nodes import (
     acoding_node,
     file_operation_node,
     should_continue,
-    afile_operation_node
+    afile_operation_node,
+    terminal_node,
+    aterminal_node,
+    browser_node,
+    abrowser_node
 )
 
 def build_workflow() -> StateGraph:
@@ -26,12 +30,14 @@ def build_workflow() -> StateGraph:
     workflow.add_node("review", RunnableLambda(review_node, afunc=areview_node))
     workflow.add_node("coding", RunnableLambda(coding_node, afunc=acoding_node))
     workflow.add_node("file_operation", RunnableLambda(file_operation_node, afunc=afile_operation_node))
+    workflow.add_node("terminal", RunnableLambda(terminal_node, afunc=aterminal_node))
+    workflow.add_node("browser", RunnableLambda(browser_node, afunc=abrowser_node))
 
     # エントリーポイント
     workflow.set_entry_point("read_code")
     workflow.add_edge("read_code", "planning")
 
-    # 条件付きエッジ
+    # 条件付きエッジ（planning）
     workflow.add_conditional_edges(
         "planning",
         should_continue,
@@ -42,6 +48,7 @@ def build_workflow() -> StateGraph:
         }
     )
 
+    # 条件付きエッジ（review）
     workflow.add_conditional_edges(
         "review",
         lambda state: "planning" if "Please revise" in state.get("review_result", "") else "coding",
@@ -51,12 +58,20 @@ def build_workflow() -> StateGraph:
         }
     )
 
-    # ここで coding -> file_operation と繋ぐ (apply_code_node を使わない場合)
+    # コーディングエージェント → ファイル操作エージェント
     workflow.add_edge("coding", "file_operation")
-    workflow.add_edge("file_operation", END)
 
-    # 終了点をモジュールにセット
-    workflow.set_finish_point("file_operation")
+    # ファイル操作エージェント → ターミナルエージェント
+    workflow.add_edge("file_operation", "terminal")
+
+    # ターミナルエージェント → ブラウザエージェント
+    workflow.add_edge("terminal", "browser")
+
+    # ブラウザエージェント → 終了
+    workflow.add_edge("browser", END)
+
+    # 終了点
+    workflow.set_finish_point("browser")
 
     graph = workflow.compile()
-    return graph 
+    return graph

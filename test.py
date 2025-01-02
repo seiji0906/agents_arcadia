@@ -6,6 +6,8 @@ from agents.coding_agent import CodingAgent
 from agents.planning_agent import PlanningAgent
 from agents.review_agent import ReviewAgent
 from agents.file_operation_agent import FileOperationAgent
+from agents.terminal_agent import TerminalAgent
+from agents.browser_agent import BrowserAgent
 from workflow import build_workflow
 from langchain_core.messages import HumanMessage
 
@@ -30,6 +32,8 @@ def main():
     planning_agent = PlanningAgent(llm, tools)
     review_agent = ReviewAgent(llm, tools)
     file_operation_agent = FileOperationAgent(llm, tools)
+    terminal_agent = TerminalAgent(llm, tools)
+    browser_agent = BrowserAgent(llm, tools)
 
     # ワークフロー構築
     graph = build_workflow()
@@ -48,7 +52,9 @@ def main():
             "planning_agent": planning_agent,
             "review_agent": review_agent,
             "file_read_tool": file_read_tool,
-            "file_operation_agent": file_operation_agent
+            "file_operation_agent": file_operation_agent,
+            "terminal_agent": terminal_agent,
+            "browser_agent": browser_agent
         }
     }
 
