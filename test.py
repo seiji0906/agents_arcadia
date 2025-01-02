@@ -6,6 +6,8 @@ from agents.coding_agent import CodingAgent
 from agents.planning_agent import PlanningAgent
 from agents.review_agent import ReviewAgent
 from agents.file_operation_agent import FileOperationAgent
+from agents.terminal_agent import TerminalAgent
+from agents.browser_agent import BrowserAgent
 from workflow import build_workflow
 from langchain_core.messages import HumanMessage
 
@@ -30,6 +32,8 @@ def main():
     planning_agent = PlanningAgent(llm, tools)
     review_agent = ReviewAgent(llm, tools)
     file_operation_agent = FileOperationAgent(llm, tools)
+    terminal_agent = TerminalAgent(llm, tools)
+    browser_agent = BrowserAgent(llm, tools)
 
     # ワークフロー構築
     graph = build_workflow()
@@ -37,7 +41,7 @@ def main():
     # 入力例
     inputs = {
         "messages": [
-            HumanMessage(content="テキストファイルの中で、頻出する単語の上位3位までのランキングを作成する。無視すべき単語（例えば ‘the’, ‘and’ など）は除外してください。")
+            HumanMessage(content="下記の[要件]をファイルを実行することで、すぐに実行できるように、してください。例　python ファイル名 。[要件]テキストファイルの中で、頻出する単語の上位3位までのランキングを作成する。無視すべき単語（例えば ‘the’, ‘and’ など）は除外してください。")
         ]
     }
 
@@ -48,7 +52,9 @@ def main():
             "planning_agent": planning_agent,
             "review_agent": review_agent,
             "file_read_tool": file_read_tool,
-            "file_operation_agent": file_operation_agent
+            "file_operation_agent": file_operation_agent,
+            "terminal_agent": terminal_agent,
+            "browser_agent": browser_agent
         }
     }
 
