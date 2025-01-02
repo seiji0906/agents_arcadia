@@ -22,22 +22,22 @@ class FileOperationAgent(BaseAgent):
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         import logging
-        logging.basicConfig(level=logging.INFO)
-        logging.info(f"FileOperationAgent run開始: input={input}")
+        # logging.basicConfig(level=logging.INFO)
+        # logging.info(f"FileOperationAgent run開始: input={input}")
         raw_text = str(input)
         messages = self.prompt.format_messages(raw_text=raw_text)
         response = self.llm.invoke(messages, config)
-        logging.info(f"LLM response content: {response.content}")
+        # logging.info(f"LLM response content: {response.content}")
 
         try:
-            logging.info(f"JSONパース前: {response.content}")  # JSONパース前の内容を出力
+            # logging.info(f"JSONパース前: {response.content}")  # JSONパース前の内容を出力
             # JSON形式の開始と終了のインデックスを見つける
             start_index = response.content.find('{')
             end_index = response.content.rfind('}') + 1
 
             if start_index != -1 and end_index > start_index:
                 json_string = response.content[start_index:end_index]
-                logging.info(f"抽出されたJSON文字列: {json_string}")
+                # logging.info(f"抽出されたJSON文字列: {json_string}")
                 json_output = json.loads(json_string)
             else:
                 logging.error(f"JSON形式の文字列が見つかりませんでした: {response.content}")
@@ -46,7 +46,7 @@ class FileOperationAgent(BaseAgent):
             file_path = json_output.get("file_path")
             code_content = json_output.get("code")
             logging.info(f"抽出されたfile_path: {file_path}")
-            logging.info(f"抽出されたcode_content: {code_content}")
+            # logging.info(f"抽出されたcode_content: {code_content}")
 
             if not file_path or not code_content:
                 return "JSON出力からファイルパスまたはコードの内容を抽出できませんでした。"
@@ -70,21 +70,21 @@ class FileOperationAgent(BaseAgent):
     async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         import logging
         logging.basicConfig(level=logging.INFO)
-        logging.info(f"FileOperationAgent arun開始: input={input}")
+        # logging.info(f"FileOperationAgent arun開始: input={input}")
         raw_text = str(input)
         messages = self.prompt.format_messages(raw_text=raw_text)
         response = await self.llm.ainvoke(messages, config)
-        logging.info(f"LLM response content: {response.content}")
+        # logging.info(f"LLM response content: {response.content}")
 
         try:
-            logging.info(f"JSONパース前 (非同期): {response.content}")  # JSONパース前の内容を出力
+            # logging.info(f"JSONパース前 (非同期): {response.content}")  # JSONパース前の内容を出力
             # JSON形式の開始と終了のインデックスを見つける
             start_index = response.content.find('{')
             end_index = response.content.rfind('}') + 1
 
             if start_index != -1 and end_index > start_index:
                 json_string = response.content[start_index:end_index]
-                logging.info(f"抽出されたJSON文字列 (非同期): {json_string}")
+                # logging.info(f"抽出されたJSON文字列 (非同期): {json_string}")
                 json_output = json.loads(json_string)
             else:
                 logging.error(f"JSON形式の文字列が見つかりませんでした (非同期): {response.content}")
@@ -102,7 +102,7 @@ class FileOperationAgent(BaseAgent):
                 async with aiofiles.open(file_path, 'w', encoding='utf-8') as f:
                     await f.write(code_content)
                 result = f"{file_path} にコードを書き込みました (非同期)。"
-                logging.info(f"FileOperationAgent arun終了 (非同期): result={result}")
+                # logging.info(f"FileOperationAgent arun終了 (非同期): result={result}")
                 return result
             except Exception as e:
                 logging.error(f"ファイルの書き込みエラー (非同期): {e}")

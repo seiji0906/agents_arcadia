@@ -7,6 +7,7 @@ from agents.coding_agent import CodingAgent
 from agents.planning_agent import PlanningAgent
 from agents.review_agent import ReviewAgent
 from agents.file_operation_agent import FileOperationAgent
+from agents.command_generation_agent import CommandGenerationAgent
 from tools.file_read_tool import FileReadTool
 from models.agent_state import AgentState
 from models.code_result import CodeResult
@@ -43,7 +44,7 @@ async def acoding_node(state: AgentState, config: RunnableConfig):
 
     messages_to_pass = list(messages)
     messages_to_pass.append(
-        HumanMessage(content=f"Here is the current content of {target_file_path}:\n\n{existing_code}")
+        HumanMessage(content=f"以下は {target_file_path} の現在の内容です:\n\n{existing_code}")
     )
 
     response_str = await agent.arun(messages_to_pass, config)
@@ -66,7 +67,7 @@ def coding_node(state: AgentState, config: RunnableConfig):
 
     messages_to_pass = list(messages)
     messages_to_pass.append(
-        HumanMessage(content=f"Here is the current content of {target_file_path}:\n\n{existing_code}")
+        HumanMessage(content=f"以下は {target_file_path} の現在の内容です:\n\n{existing_code}")
     )
 
     response_str = agent.run(messages_to_pass, config)
@@ -98,7 +99,7 @@ def review_node(state: AgentState, config: RunnableConfig):
     agent: ReviewAgent = config["configurable"]["review_agent"]
     messages = state["messages"]
     messages.append(
-        HumanMessage(content=f"Please review the following requirements:\n{state['requirements']}")
+        HumanMessage(content=f"以下の要件をご確認ください:\n{state['requirements']}")
     )
     response = agent.run(messages, config)
     return {"messages": [response], "review_result": response.content}
@@ -108,7 +109,7 @@ async def areview_node(state: AgentState, config: RunnableConfig):
     agent: ReviewAgent = config["configurable"]["review_agent"]
     messages = state["messages"]
     messages.append(
-        HumanMessage(content=f"Please review the following requirements:\n{state['requirements']}")
+        HumanMessage(content=f"以下の要件をご確認ください:\n{state['requirements']}")
     )
     response = await agent.arun(messages, config)
     return {"messages": [response], "review_result": response.content}
@@ -162,29 +163,74 @@ def should_continue(state: AgentState) -> str:
     else:
         return "coding" 
 
+def command_generation_node(state: AgentState, config: RunnableConfig):
+    """
+    CommandGenerationAgent を呼び出すノード。
+    """
+    agent: CommandGenerationAgent = config["configurable"]["command_generation_agent"]
+    messages = state.get("messages", [])
+    file_operation_result = state.get("file_operation_result", "")
+
+    messages_to_pass = list(messages)
+    messages_to_pass.append(
+        HumanMessage(content=f"ファイル操作の結果: {file_operation_result}。これに基づき、次に実行すべきコマンドを生成してください。")
+    )
+
+    command_json = agent.run(messages_to_pass, config)
+    return {
+        "messages": messages_to_pass,
+        "generated_command": command_json,
+        "file_operation_result": file_operation_result  # file_operation_result も返す
+    }
+
+async def acommand_generation_node(state: AgentState, config: RunnableConfig):
+    """
+    CommandGenerationAgent の非同期呼び出しノード。
+    """
+    agent: CommandGenerationAgent = config["configurable"]["command_generation_agent"]
+    messages = state.get("messages", [])
+    file_operation_result = state.get("file_operation_result", "")
+
+    messages_to_pass = list(messages)
+    messages_to_pass.append(
+        HumanMessage(content=f"ファイル操作の結果: {file_operation_result}。これに基づき、次に実行すべきコマンドを生成してください。")
+    )
+
+    command_json = await agent.arun(messages_to_pass, config)
+    return {
+        "messages": messages_to_pass,
+        "generated_command": command_json,
+        "file_operation_result": file_operation_result  # file_operation_result も返す
+    }
+
 def terminal_node(state: AgentState, config: RunnableConfig):
     """
     TerminalAgent を呼び出すノード。
     """
-    # TerminalAgent の準備
     agent: TerminalAgent = config["configurable"]["terminal_agent"]
+    messages = state.get("messages", [])
+    generated_command_json = state.get("generated_command", "")
 
-    # state["messages"] からメッセージリストをコピー
-    base_messages = state.get("messages", [])
-    messages_to_pass = list(base_messages)
+    try:
+        # JSON 文字列からコマンドを抽出
+        generated_command = json.loads(generated_command_json)["command"]
+    except (json.JSONDecodeError, KeyError):
+        return {
+            "messages": messages,
+            "terminal_command": "コマンドの生成に失敗しました。"
+        }
 
-    # TerminalAgent 用に追加の HumanMessage を加える例
+    messages_to_pass = list(messages)
     messages_to_pass.append(
-        HumanMessage(content="動作確認をするためのコマンドを生成してください。")
+        HumanMessage(content=f"次のコマンドを実行してください: {generated_command}")
     )
 
-    # TerminalAgent.run にメッセージを渡す
-    command = agent.run(messages_to_pass, config)
+    # TerminalAgent.run にコマンドを文字列として渡す
+    command_result = agent.run([HumanMessage(content=generated_command)], config)
 
     return {
-        # 次以降のノードに渡すため、更新した messages_to_pass を返す
         "messages": messages_to_pass,
-        "terminal_command": command
+        "terminal_command": command_result  # エラーメッセージを格納
     }
 
 async def aterminal_node(state: AgentState, config: RunnableConfig):
@@ -193,10 +239,28 @@ async def aterminal_node(state: AgentState, config: RunnableConfig):
     """
     agent: TerminalAgent = config["configurable"]["terminal_agent"]
     messages = state.get("messages", [])
-    command = await agent.arun(messages, config)
+    generated_command_json = state.get("generated_command", "")
+
+    try:
+        # JSON 文字列からコマンドを抽出
+        generated_command = json.loads(generated_command_json)["command"]
+    except (json.JSONDecodeError, KeyError):
+        return {
+            "messages": messages,
+            "terminal_command": "コマンドの生成に失敗しました。"
+        }
+
+    messages_to_pass = list(messages)
+    messages_to_pass.append(
+        HumanMessage(content=f"次のコマンドを実行してください: {generated_command}")
+    )
+
+    # TerminalAgent.arun にコマンドを文字列として渡す
+    command_result = await agent.arun([HumanMessage(content=generated_command)], config)
+
     return {
-        "messages": messages,
-        "terminal_command": command
+        "messages": messages_to_pass,
+        "terminal_command": command_result  # エラーメッセージを格納
     }
 
 def browser_node(state: AgentState, config: RunnableConfig):
@@ -222,4 +286,4 @@ async def abrowser_node(state: AgentState, config: RunnableConfig):
     return {
         "messages": messages,
         "browser_result": result
-    } 
+    }

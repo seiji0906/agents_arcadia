@@ -64,35 +64,35 @@ class TerminalAgent(BaseAgent):
             return ""
 
         # 入力メッセージの詳細をログ出力
-        logging.debug("=== TerminalAgent入力メッセージの詳細 ===")
-        logging.debug(f"入力の型: {type(input)}")  # 入力の型をログ出力
-        logging.debug(f"入力の内容: {input}")    # 入力の内容をログ出力
-        if isinstance(input, list):
-            for i, msg in enumerate(input):
-                logging.debug(f"  [{i}] 要素の型: {type(msg)}")  # 各要素の型をログ出力
-                if not isinstance(msg, BaseMessage):
-                    logging.error(f"  [{i}] 警告: 要素は BaseMessage のインスタンスではありません。")
-                logging.debug(f"  [{i}] Message Content: {msg.content}")
-        logging.debug("================================")
+        # logging.debug("=== TerminalAgent入力メッセージの詳細 ===")
+        # logging.debug(f"入力の型: {type(input)}")  # 入力の型をログ出力
+        # logging.debug(f"入力の内容: {input}")    # 入力の内容をログ出力
+        # if isinstance(input, list):
+        #     for i, msg in enumerate(input):
+        #         logging.debug(f"  [{i}] 要素の型: {type(msg)}")  # 各要素の型をログ出力
+        #         if not isinstance(msg, BaseMessage):
+        #             logging.error(f"  [{i}] 警告: 要素は BaseMessage のインスタンスではありません。")
+        #         logging.debug(f"  [{i}] Message Content: {msg.content}")
+        # logging.debug("================================")
 
         # プロンプトを整形してLLMに投入
         try:
-            logging.debug("========hogehogehogeho==========")
-            logging.debug(f"input: {input}")
+            # logging.debug("========hogehogehogeho==========")
+            # logging.debug(f"input: {input}")
             messages = self.prompt.format_messages(messages=input)
-            logging.debug("=== LLMへ送信するプロンプト ===")
-            for msg in messages:
-                logging.debug(f"Message Type: {type(msg)}")
-                logging.debug(f"Message Content: {msg.content}")
-            logging.debug("================================")
+            # logging.debug("=== LLMへ送信するプロンプト ===")
+            # for msg in messages:
+            #     logging.debug(f"Message Type: {type(msg)}")
+            #     logging.debug(f"Message Content: {msg.content}")
+            # logging.debug("================================")
 
             # LLM 呼び出し直前に messages と config の内容をログ出力
-            logging.debug(f"LLMに送信する messages: {messages}")
-            logging.debug(f"LLMに送信する config: {config}")
+            # logging.debug(f"LLMに送信する messages: {messages}")
+            # logging.debug(f"LLMに送信する config: {config}")
 
             response = self.llm.invoke(messages, config)
-            logging.debug("========fugafugafugafuga==========")
-            logging.debug(f"=== LLMからの生の応答 ===\n{response}\n====================")
+            # logging.debug("========fugafugafugafuga==========")
+            # logging.debug(f"=== LLMからの生の応答 ===\n{response}\n====================")
             
             # レスポンスの内容をクリーンアップ
             content = response.content.strip()
@@ -102,7 +102,7 @@ class TerminalAgent(BaseAgent):
             elif "```" in content:
                 content = content.split("```")[-2].strip()
                 
-            logging.info(f"クリーンアップ後の内容: {content}")
+            # logging.info(f"クリーンアップ後の内容: {content}")
             
             try:
                 # 直接JSONとしてパースを試みる

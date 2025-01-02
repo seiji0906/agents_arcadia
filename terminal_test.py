@@ -13,7 +13,7 @@ import json
 
 # ログの設定
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("terminal_test.log"),
@@ -52,15 +52,15 @@ class TerminalAgent(BaseAgent):
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("TerminalAgent.run開始")
-        logging.debug(f"Input: {input}")
+        # logging.debug(f"Input: {input}")
 
         try:
-            logging.debug("フォーマット前のメッセージ内容:")
-            for msg in input:
-                logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
+            # logging.debug("フォーマット前のメッセージ内容:")
+            # for msg in input:
+            #     logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
 
             messages = self.prompt.format_messages(messages=input)
-            logging.debug(f"Formatted messages: {messages}")
+            # logging.debug(f"Formatted messages: {messages}")
         except KeyError as e:
             logging.error(f"メッセージのフォーマット中にキーエラーが発生しました: {e}")
             return ""
@@ -73,7 +73,7 @@ class TerminalAgent(BaseAgent):
             return ""
 
         content = response.content.strip()
-        logging.debug(f"レスポンス内容（トリム後）: {content}")
+        # logging.debug(f"レスポンス内容（トリム後）: {content}")
 
         # JSON部分のみを抽出
         start_index = content.find('{')
@@ -81,14 +81,14 @@ class TerminalAgent(BaseAgent):
 
         if start_index != -1 and end_index > start_index:
             json_string = content[start_index:end_index]
-            logging.debug(f"抽出されたJSON文字列: {json_string}")
+            # logging.debug(f"抽出されたJSON文字列: {json_string}")
         else:
             logging.error("JSON形式の文字列が見つかりませんでした。")
             return ""
 
         try:
             data = json.loads(json_string)
-            logging.debug(f"パースされたデータ: {data}")
+            # logging.debug(f"パースされたデータ: {data}")
             command_result = CommandResult(**data)
             logging.info(f"抽出されたコマンド: {command_result.command}")
             return command_result.command
@@ -99,28 +99,28 @@ class TerminalAgent(BaseAgent):
 
     async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("TerminalAgent.arun開始")
-        logging.debug(f"Input: {input}")
+        # logging.debug(f"Input: {input}")
 
         try:
-            logging.debug("フォーマット前のメッセージ内容 (非同期):")
-            for msg in input:
-                logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
+            # logging.debug("フォーマット前のメッセージ内容 (非同期):")
+            # for msg in input:
+            #     logging.debug(f"Message type: {type(msg)}, content: {msg.content}")
 
             messages = self.prompt.format_messages(messages=input)
-            logging.debug(f"Formatted messages (async): {messages}")
+            # logging.debug(f"Formatted messages (async): {messages}")
         except KeyError as e:
             logging.error(f"メッセージのフォーマット中にキーエラーが発生しました (非同期): {e}")
             return ""
 
         try:
             response = await self.llm.ainvoke(messages, config)
-            logging.info(f"LLMからのレスポンス (非同期): {response.content}")
+            # logging.info(f"LLMからのレスポンス (非同期): {response.content}")
         except Exception as e:
             logging.error(f"LLMの非同期呼び出し中にエラーが発生しました: {e}")
             return ""
 
         content = response.content.strip()
-        logging.debug(f"レスポンス内容（トリム後, 非同期）: {content}")
+        # logging.debug(f"レスポンス内容（トリム後, 非同期）: {content}")
 
         # JSON部分のみを抽出
         start_index = content.find('{')
@@ -128,16 +128,16 @@ class TerminalAgent(BaseAgent):
 
         if start_index != -1 and end_index > start_index:
             json_string = content[start_index:end_index]
-            logging.debug(f"抽出されたJSON文字列 (非同期): {json_string}")
+            # logging.debug(f"抽出されたJSON文字列 (非同期): {json_string}")
         else:
             logging.error("JSON形式の文字列が見つかりませんでした。 (非同期)")
             return ""
 
         try:
             data = json.loads(json_string)
-            logging.debug(f"パースされたデータ (非同期): {data}")
+            # logging.debug(f"パースされたデータ (非同期): {data}")
             command_result = CommandResult(**data)
-            logging.info(f"抽出されたコマンド (非同期): {command_result.command}")
+            # logging.info(f"抽出されたコマンド (非同期): {command_result.command}")
             return command_result.command
         except (json.JSONDecodeError, ValidationError) as e:
             logging.error(f"JSONのパース中にエラーが発生しました (非同期): {e}")
@@ -153,7 +153,7 @@ async def main():
             model="gpt-4o",
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
         )
-        logging.info("LLMの初期化に成功しました。")
+        # logging.info("LLMの初期化に成功しました。")
     except Exception as e:
         logging.error(f"LLMの初期化中にエラーが発生しました: {e}")
         return
@@ -161,11 +161,11 @@ async def main():
     # ツールの準備
     terminal_tool = TerminalTool()
     tools = [terminal_tool]
-    logging.info("ツールの準備が完了しました。")
+    # logging.info("ツールの準備が完了しました。")
 
     # エージェントの準備
     terminal_agent = TerminalAgent(llm, tools)
-    logging.info("TerminalAgentの準備が完了しました。")
+    # logging.info("TerminalAgentの準備が完了しました。")
 
     # 実行するコマンドの指示
     command_instruction = "fast_test.pyを実行してサーバーを立ち上げてください。"
