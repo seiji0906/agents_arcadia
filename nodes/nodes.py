@@ -14,8 +14,11 @@ from models.code_result import CodeResult
 from typing import Any, Optional
 from pydantic import ValidationError
 import json
+import logging
 from agents.terminal_agent import TerminalAgent
 from agents.browser_agent import BrowserAgent
+
+logging.basicConfig(level=logging.DEBUG)
 
 def read_code_node(state: AgentState, config: RunnableConfig):
     """
@@ -203,6 +206,7 @@ async def acommand_generation_node(state: AgentState, config: RunnableConfig):
         "file_operation_result": file_operation_result  # file_operation_result も返す
     }
 
+
 def terminal_node(state: AgentState, config: RunnableConfig):
     """
     TerminalAgent を呼び出すノード。
@@ -211,26 +215,27 @@ def terminal_node(state: AgentState, config: RunnableConfig):
     messages = state.get("messages", [])
     generated_command_json = state.get("generated_command", "")
 
+    logging.info(f"terminal_node - state: {state}") # ステートの内容を出力
+
     try:
         # JSON 文字列からコマンドを抽出
         generated_command = json.loads(generated_command_json)["command"]
+        logging.info(f"terminal_node - 抽出されたコマンド: {generated_command}") # 抽出されたコマンドを出力
     except (json.JSONDecodeError, KeyError):
+        logging.error(f"terminal_node - コマンドの生成に失敗しました。")
         return {
             "messages": messages,
             "terminal_command": "コマンドの生成に失敗しました。"
         }
 
-    messages_to_pass = list(messages)
-    messages_to_pass.append(
-        HumanMessage(content=f"次のコマンドを実行してください: {generated_command}")
-    )
-
     # TerminalAgent.run にコマンドを文字列として渡す
-    command_result = agent.run([HumanMessage(content=generated_command)], config)
+    logging.info(f"terminal_node - TerminalAgent.run 呼び出し前の generated_command: {generated_command}") # 呼び出し前にコマンドを出力
+    command_result = agent.run(generated_command) # config を削除
+    logging.info(f"terminal_node - コマンド実行結果: {command_result}") # 実行結果を出力
 
     return {
-        "messages": messages_to_pass,
-        "terminal_command": command_result  # エラーメッセージを格納
+        "messages": messages, # 以前のメッセージ履歴を引き続き渡す
+        "terminal_command": command_result  # エラーメッセージ含む実行結果を格納
     }
 
 async def aterminal_node(state: AgentState, config: RunnableConfig):
@@ -241,26 +246,27 @@ async def aterminal_node(state: AgentState, config: RunnableConfig):
     messages = state.get("messages", [])
     generated_command_json = state.get("generated_command", "")
 
+    logging.info(f"aterminal_node - state: {state}") # ステートの内容を出力
+
     try:
         # JSON 文字列からコマンドを抽出
         generated_command = json.loads(generated_command_json)["command"]
+        logging.info(f"aterminal_node - 抽出されたコマンド: {generated_command}") # 抽出されたコマンドを出力
     except (json.JSONDecodeError, KeyError):
+        logging.error(f"aterminal_node - コマンドの生成に失敗しました。")
         return {
             "messages": messages,
             "terminal_command": "コマンドの生成に失敗しました。"
         }
 
-    messages_to_pass = list(messages)
-    messages_to_pass.append(
-        HumanMessage(content=f"次のコマンドを実行してください: {generated_command}")
-    )
-
     # TerminalAgent.arun にコマンドを文字列として渡す
-    command_result = await agent.arun([HumanMessage(content=generated_command)], config)
+    logging.info(f"aterminal_node - TerminalAgent.arun 呼び出し前の generated_command: {generated_command}") # 呼び出し前にコマンドを出力
+    command_result = await agent.arun(generated_command) # config を削除
+    logging.info(f"aterminal_node - コマンド実行結果: {command_result}") # 実行結果を出力
 
     return {
-        "messages": messages_to_pass,
-        "terminal_command": command_result  # エラーメッセージを格納
+        "messages": messages, # 以前のメッセージ履歴を引き続き渡す
+        "terminal_command": command_result  # エラーメッセージ含む実行結果を格納
     }
 
 def browser_node(state: AgentState, config: RunnableConfig):

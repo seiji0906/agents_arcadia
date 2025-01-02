@@ -22,7 +22,7 @@ class FileOperationAgent(BaseAgent):
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         import logging
-        # logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(level=logging.DEBUG)
         # logging.info(f"FileOperationAgent run開始: input={input}")
         raw_text = str(input)
         messages = self.prompt.format_messages(raw_text=raw_text)

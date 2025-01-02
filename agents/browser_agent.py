@@ -3,6 +3,7 @@ from typing import Any, Optional
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from browser_use import Agent as BrowserUseAgent, Controller, Browser, BrowserConfig
+from browser_use.browser.context import BrowserContext
 from agents.base_agent import BaseAgent
 
 logging.basicConfig(
@@ -16,9 +17,9 @@ class BrowserAgent(BaseAgent):
         self.task = task
         self.controller = Controller()
         self.browser = Browser(config=BrowserConfig(headless=True))
-        # logging.info("BrowserAgent 初期化完了")
+        logging.info("BrowserAgent 初期化完了")
 
-    def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
+    async def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("BrowserAgent.runを開始します。")
         # browser_use の Agent クラスを使って任意のタスクを実行
         agent = BrowserUseAgent(
@@ -29,7 +30,7 @@ class BrowserAgent(BaseAgent):
         )
         try:
             # ブラウザを開き、タスクを実行する（例として run()）
-            agent.run()
+            await agent.run()
             return "BrowserAgent: タスクが完了しました。"
         except Exception as e:
             logging.error(f"BrowserAgent 実行中にエラーが発生しました: {e}")
@@ -38,4 +39,4 @@ class BrowserAgent(BaseAgent):
     async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("BrowserAgent.arunを開始します。")
         # 同期的に run() を呼ぶか、必要に応じて非同期化
-        return self.run(input, config) 
+        return await self.run(input, config)
