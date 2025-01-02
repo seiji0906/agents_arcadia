@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from tools.file_read_tool import FileReadTool
+from agents.terminal_agent import TerminalTool
 from agents.coding_agent import CodingAgent
 from agents.planning_agent import PlanningAgent
 from agents.review_agent import ReviewAgent
@@ -19,7 +20,8 @@ def main():
 
     # ツールを準備
     file_read_tool = FileReadTool()
-    tools = [file_read_tool]  # 必要に応じて追加
+    terminal_tool = TerminalTool()
+    tools = [file_read_tool, terminal_tool]  # 必要に応じて追加
 
     # LLMを準備
     llm = ChatOpenAI(
@@ -43,7 +45,7 @@ def main():
     # 入力例
     inputs = {
         "messages": [
-            HumanMessage(content="下記の[要件]をファイルを実行することで、すぐに実行できるように、してください。例　python ファイル名 。[要件]テキストファイルの中で、頻出する単語の上位3位までのランキングを作成する。無視すべき単語（例えば ‘the’, ‘and’ など）は除外してください。")
+            HumanMessage(content="下記の[要件]をファイルを実行することで、すぐに実行できるように、してください。例　python ファイル名 。[要件]テキストファイルの中で、頻出する単語の上位3位までのランキングを作成する。無視すべき単語（例えば 'the', 'and' など）は除外してください。")
         ]
     }
 
