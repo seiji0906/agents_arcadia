@@ -16,7 +16,7 @@ class BrowserAgent(BaseAgent):
         self.task = task
         self.controller = Controller()
         self.browser = Browser(config=BrowserConfig(headless=True))
-        logging.info("BrowserAgent 初期化完了")
+        # logging.info("BrowserAgent 初期化完了")
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("BrowserAgent.runを開始します。")

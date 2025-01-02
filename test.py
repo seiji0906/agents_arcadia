@@ -8,6 +8,7 @@ from agents.review_agent import ReviewAgent
 from agents.file_operation_agent import FileOperationAgent
 from agents.terminal_agent import TerminalAgent
 from agents.browser_agent import BrowserAgent
+from agents.command_generation_agent import CommandGenerationAgent
 from workflow import build_workflow
 from langchain_core.messages import HumanMessage
 
@@ -34,6 +35,7 @@ def main():
     file_operation_agent = FileOperationAgent(llm, tools)
     terminal_agent = TerminalAgent(llm, tools)
     browser_agent = BrowserAgent(llm, tools)
+    command_generation_agent = CommandGenerationAgent(llm, tools)
 
     # ワークフロー構築
     graph = build_workflow()
@@ -54,12 +56,14 @@ def main():
             "file_read_tool": file_read_tool,
             "file_operation_agent": file_operation_agent,
             "terminal_agent": terminal_agent,
-            "browser_agent": browser_agent
+            "browser_agent": browser_agent,
+            "command_generation_agent": command_generation_agent,
         }
     }
 
     # 同期実行（ストリーム形式）
     for output in graph.stream(inputs, config):
+        print("================")
         print(output)
 
     # 非同期実行を行う場合
