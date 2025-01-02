@@ -24,6 +24,10 @@ class TerminalTool:
     def run(self, command: str) -> str:
         logging.info(f"Executing command: {command}")
         try:
+            # subprocess.run に渡される引数を出力
+            logging.info("###################################")
+            logging.info(f"subprocess.run args: command={command}, shell=True, capture_output=True, text=True, check=True")
+            logging.info("###################################")
             process = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
             logging.info(f"Command output: {process.stdout}")
             return process.stdout
@@ -40,11 +44,10 @@ class TerminalAgent(BaseAgent):
 
         # inputが文字列の場合、直接コマンドとして扱う
         if isinstance(input, str):
-            logging.info("###################################")
             logging.info(f"直接実行するコマンド: {input}")
             terminal_tool = next((t for t in (self.tools or []) if t.name == "terminal"), None)
             if terminal_tool:
-                return terminal_tool.run(input)
+                return terminal_tool.run(input) # ここでコマンドが実行される
             else:
                 logging.warning("TerminalToolが見つかりませんでした。コマンド実行スキップ。")
                 return ""
