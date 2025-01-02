@@ -17,3 +17,4 @@ class AgentState(TypedDict):
     coding_result: Optional[dict]      # コーディング結果（ファイルパスとコードを含む）
     existing_code: Optional[str]       # 既存のコードを保持
     target_file_path: Optional[str]    # 対象のファイルパス 
+    generated_command: Optional[str]   # 生成されたコマンド

@@ -19,14 +19,15 @@ class CommandGenerationAgent(BaseAgent):
     def __init__(self, llm, tools=None):
         super().__init__(llm, tools)
         self.command_generation_prompt = ChatPromptTemplate.from_messages([
-            ("system", "あなたは有能なコマンド生成アシスタントです。ユーザーの指示に従って、実行可能なターミナルコマンドを生成し、以下の形式で提供してください。\n\n```json\n{\"command\": \"生成するコマンド\"}\n```\n\n必ず'command'キーのみを含むJSONオブジェクトを返してください。説明や追加のテキストは含めないでください。JSONオブジェクト以外の形式で返信しないでください。"),
+            ("system", "あなたは有能なコマンド生成アシスタントです。ユーザーの指示に従って、実行可能なターミナルコマンドを生成し、以下の**厳密なJSON形式**で提供してください。\n\n```json\n{{\"command\": \"生成するコマンド\"}}\n```\n\n**JSONオブジェクトのみを返し、それ以外のテキストは含めないでください。**"),
             MessagesPlaceholder(variable_name="messages")
         ])
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         command_gen_messages = self.command_generation_prompt.format_messages(messages=input)
+        logging.info(f"CommandGenerationAgent - command_gen_messages: {command_gen_messages}")
         response = self.llm.invoke(command_gen_messages, config)
-
+        logging.info("##########################")
         logging.info(f"CommandGenerationAgent - LLM response: {response.content}")
 
         if not isinstance(response.content, str):
@@ -35,11 +36,15 @@ class CommandGenerationAgent(BaseAgent):
         # LLMの応答からコマンドを抽出
         content = response.content.strip()
 
-        # 回答がコードブロックで囲まれているか確認する
-        if content.startswith("```json") and content.endswith("```"):
-            content = content[7:-3].strip()
-        elif content.startswith("```") and content.endswith("```"):
-            content = content[3:-3].strip()
+        # JSON形式の開始と終了のインデックスを見つける
+        start_index = content.find('{')
+        end_index = content.rfind('}') + 1
+
+        if start_index != -1 and end_index > start_index:
+            content = content[start_index:end_index]
+        else:
+            logging.error(f"CommandGenerationAgent - JSON形式の文字列が見つかりませんでした: {response.content}")
+            return json.dumps({"command": ""})
 
         try:
             data = json.loads(content)
@@ -55,6 +60,7 @@ class CommandGenerationAgent(BaseAgent):
 
     async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         command_gen_messages = self.command_generation_prompt.format_messages(messages=input)
+        logging.info(f"CommandGenerationAgent - command_gen_messages: {command_gen_messages}")
         response = await self.llm.ainvoke(command_gen_messages, config)
 
         logging.info(f"CommandGenerationAgent - LLM response: {response.content}")
@@ -64,10 +70,15 @@ class CommandGenerationAgent(BaseAgent):
 
         # LLMの応答からコマンドを抽出
         content = response.content.strip()
-        if content.startswith("```json") and content.endswith("```"):
-            content = content[7:-3].strip()
-        elif content.startswith("```") and content.endswith("```"):
-            content = content[3:-3].strip()
+        # JSON形式の開始と終了のインデックスを見つける
+        start_index = content.find('{')
+        end_index = content.rfind('}') + 1
+
+        if start_index != -1 and end_index > start_index:
+            content = content[start_index:end_index]
+        else:
+            logging.error(f"CommandGenerationAgent - JSON形式の文字列が見つかりませんでした (非同期): {response.content}")
+            return json.dumps({"command": ""})
 
         try:
             data = json.loads(content)

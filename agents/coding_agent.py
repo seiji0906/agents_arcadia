@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 from agents.base_agent import BaseAgent
 from langchain_core.runnables import RunnableConfig
 from typing import Any, Optional, Literal
-
+import logging
 class CodingAgent(BaseAgent):
     """
     コード生成・修正に特化した機能を実装するエージェント。
@@ -21,6 +21,8 @@ class CodingAgent(BaseAgent):
         ])
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
+        logging.info("########################## coding_agent")
+        logging.info(f"CodingAgent - input: {input}")
         code_gen_messages = self.coding_prompt.format_messages(messages=input)
         response = self.llm.invoke(code_gen_messages, config)
 

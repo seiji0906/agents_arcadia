@@ -2,7 +2,7 @@
 ワークフローで使用するノード（read_code_node, planning_node, review_node, coding_node, apply_code_node 等）
 """
 from langchain_core.messages import HumanMessage
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import RunnableConfig, RunnableLambda
 from agents.coding_agent import CodingAgent
 from agents.planning_agent import PlanningAgent
 from agents.review_agent import ReviewAgent
@@ -17,6 +17,7 @@ import json
 import logging
 from agents.terminal_agent import TerminalAgent
 from agents.browser_agent import BrowserAgent
+import asyncio
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -174,7 +175,7 @@ def command_generation_node(state: AgentState, config: RunnableConfig):
     messages = state.get("messages", [])
     file_operation_result = state.get("file_operation_result", "")
 
-    logging.info(f"command_generation_node - state: {state}") # ステートの内容を出力
+    logging.info(f"command_generation_node - state: {state}")  # ステートの内容を出力
 
     messages_to_pass = list(messages)
     messages_to_pass.append(
@@ -183,12 +184,16 @@ def command_generation_node(state: AgentState, config: RunnableConfig):
 
     command_json = agent.run(messages_to_pass, config)
 
-    logging.info(f"command_generation_node - generated_command: {command_json}") # 生成されたコマンドを出力
+    logging.info(f"command_generation_node - generated_command: {command_json}")  # 生成されたコマンドを出力
 
     # JSON 文字列からコマンドを抽出
     try:
-        command = json.loads(command_json)["command"]
-    except (json.JSONDecodeError, KeyError):
+        parsed_command = json.loads(command_json)
+        command = parsed_command.get("command", "")
+        logging.info("##########################")
+        logging.info(f"command_generation_node - 抽出されたコマンド: {command}")
+        logging.info("##########################")
+    except json.JSONDecodeError:
         logging.error(f"command_generation_node - コマンドのパースに失敗しました。")
         return {
             "messages": messages_to_pass,
@@ -198,10 +203,11 @@ def command_generation_node(state: AgentState, config: RunnableConfig):
 
     return_value = {
         "messages": messages_to_pass,
-        "generated_command": command, # JSON ではなく、コマンド文字列を格納
+        "generated_command": command,
         "file_operation_result": file_operation_result
     }
-    print(f"command_generation_node - returning: {return_value}")
+    # print(f"command_generation_node - returning: {return_value}")
+
     return return_value
 
 async def acommand_generation_node(state: AgentState, config: RunnableConfig):
@@ -212,61 +218,37 @@ async def acommand_generation_node(state: AgentState, config: RunnableConfig):
     messages = state.get("messages", [])
     file_operation_result = state.get("file_operation_result", "")
 
-    logging.info(f"acommand_generation_node - state: {state}") # ステートの内容を出力
+    logging.info(f"acommand_generation_node - state: {state}")
 
+    # メッセージ履歴にファイル操作の結果を追加
     messages_to_pass = list(messages)
     messages_to_pass.append(
         HumanMessage(content=f"ファイル操作の結果: {file_operation_result}。これに基づき、次に実行すべきコマンドを生成してください。")
     )
 
-    command_json = await agent.arun(messages_to_pass, config)
+    # CommandGenerationAgent に渡す input を修正
+    # messages キーを持つ辞書として渡す
+    command_json = await agent.arun({"messages": messages_to_pass}, config)
 
-    logging.info(f"acommand_generation_node - generated_command: {command_json}") # 生成されたコマンドを出力
+    logging.info(f"acommand_generation_node - generated_command: {command_json}")
 
     # JSON 文字列からコマンドを抽出
     try:
-        command = json.loads(command_json)["command"]
-    except (json.JSONDecodeError, KeyError):
+        parsed_command = json.loads(command_json)
+        command = parsed_command.get("command", "")
+        logging.info(f"acommand_generation_node - 抽出されたコマンド: {command}")
+    except json.JSONDecodeError:
         logging.error(f"acommand_generation_node - コマンドのパースに失敗しました。")
         return {
             "messages": messages_to_pass,
-            "generated_command": "",  # コマンドを空にする
+            "generated_command": "",
             "file_operation_result": file_operation_result
         }
 
     return {
         "messages": messages_to_pass,
-        "generated_command": command, # JSON ではなく、コマンド文字列を格納
+        "generated_command": command,  # 文字列として渡す
         "file_operation_result": file_operation_result
-    }
-
-def terminal_node(state: AgentState, config: RunnableConfig):
-    """
-    TerminalAgent を呼び出すノード。
-    """
-    agent: TerminalAgent = config["configurable"]["terminal_agent"]
-    messages = state.get("messages", [])
-    generated_command = state.get("generated_command", "") # JSON ではなく、文字列として取得
-
-    logging.info(f"terminal_node - state: {state}") # ステートの内容を出力
-
-    if not generated_command:
-        logging.error(f"terminal_node - コマンドが生成されていません。")
-        return {
-            "messages": messages,
-            "terminal_command": "コマンドが生成されていません。"
-        }
-
-    logging.info(f"terminal_node - 抽出されたコマンド: {generated_command}") # 抽出されたコマンドを出力
-
-    # TerminalAgent.run にコマンドを文字列として渡す
-    logging.info(f"terminal_node - TerminalAgent.run 呼び出し前の generated_command: {generated_command}") # 呼び出し前にコマンドを出力
-    command_result = agent.run(generated_command) # config を削除
-    logging.info(f"terminal_node - コマンド実行結果: {command_result}") # 実行結果を出力
-
-    return {
-        "messages": messages, # 以前のメッセージ履歴を引き続き渡す
-        "terminal_command": command_result  # エラーメッセージ含む実行結果を格納
     }
 
 async def aterminal_node(state: AgentState, config: RunnableConfig):
@@ -275,28 +257,69 @@ async def aterminal_node(state: AgentState, config: RunnableConfig):
     """
     agent: TerminalAgent = config["configurable"]["terminal_agent"]
     messages = state.get("messages", [])
-    generated_command = state.get("generated_command", "") # JSON ではなく、文字列として取得
+    generated_command = state.get("generated_command", "")  # JSON ではなく、文字列として取得
 
-    logging.info(f"aterminal_node - state: {state}") # ステートの内容を出力
+    logging.info(f"aterminal_node - state: {state}")  # ステートの内容を出力
 
     if not generated_command:
+        logging.info("########################## aterminal_node")
         logging.error(f"aterminal_node - コマンドが生成されていません。")
         return {
             "messages": messages,
             "terminal_command": "コマンドが生成されていません。"
         }
 
-    logging.info(f"aterminal_node - 抽出されたコマンド: {generated_command}") # 抽出されたコマンドを出力
+    logging.info(f"aterminal_node - 抽出されたコマンド: {generated_command}")  # 抽出されたコマンドを出力
 
     # TerminalAgent.arun にコマンドを文字列として渡す
-    logging.info(f"aterminal_node - TerminalAgent.arun 呼び出し前の generated_command: {generated_command}") # 呼び出し前にコマンドを出力
-    command_result = await agent.arun(generated_command) # config を削除
-    logging.info(f"aterminal_node - コマンド実行結果: {command_result}") # 実行結果を出力
+    logging.info(f"aterminal_node - TerminalAgent.arun 呼び出し前の generated_command: {generated_command}")  # 呼び出し前にコマンドを出力
+    command_result = await agent.arun(generated_command, config)  # config を追加
+    logging.info(f"aterminal_node - コマンド実行結果: {command_result}")  # 実行結果を出力
 
     return {
-        "messages": messages, # 以前のメッセージ履歴を引き続き渡す
+        "messages": messages,  # 以前のメッセージ履歴を引き続き渡す
         "terminal_command": command_result  # エラーメッセージ含む実行結果を格納
     }
+
+def terminal_node(state: AgentState, config: RunnableConfig):
+    """
+    TerminalAgent の同期呼び出しノード。
+    """
+    try:
+        
+        logging.info(f"terminal_node - state: {state}")
+        agent: TerminalAgent = config["configurable"]["terminal_agent"]
+        messages = state.get("messages", [])
+        generated_command = state.get("generated_command", "")
+        
+        logging.info(f"messages: {messages}")
+        # logging.info(f"terminal_node - state: {state}")
+        logging.debug(f"terminal_node - generated_command type: {type(generated_command)}, value: {generated_command}")
+
+        if not generated_command:
+            logging.info("########################## terminal_node")
+            logging.error(f"terminal_node - コマンドが生成されていません。")
+            return {
+                "messages": messages,
+                "terminal_command": "コマンドが生成されていません。"
+            }
+
+        logging.info(f"terminal_node - 抽出されたコマンド: {generated_command}")
+
+        # 非同期関数を同期的に実行
+        command_result = asyncio.run(agent.arun(generated_command, config))
+        logging.info(f"terminal_node - コマンド実行結果: {command_result}")
+
+        return {
+            "messages": messages,
+            "terminal_command": command_result
+        }
+    except Exception as e:
+        logging.error(f"terminal_node - 例外が発生しました: {e}")
+        return {
+            "messages": messages,
+            "terminal_command": f"エラーが発生しました: {e}"
+        }
 
 def browser_node(state: AgentState, config: RunnableConfig):
     """

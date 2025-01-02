@@ -32,9 +32,9 @@ def build_workflow() -> StateGraph:
     workflow.add_node("review", RunnableLambda(review_node, afunc=areview_node))
     workflow.add_node("coding", RunnableLambda(coding_node, afunc=acoding_node))
     workflow.add_node("file_operation", RunnableLambda(file_operation_node, afunc=afile_operation_node))
+    workflow.add_node("command_generation", RunnableLambda(command_generation_node, afunc=acommand_generation_node))
     workflow.add_node("terminal", RunnableLambda(terminal_node, afunc=aterminal_node))
     workflow.add_node("browser", RunnableLambda(browser_node, afunc=abrowser_node))
-    workflow.add_node("command_generation", RunnableLambda(command_generation_node, afunc=acommand_generation_node))
 
     # エントリーポイント
     workflow.set_entry_point("read_code")

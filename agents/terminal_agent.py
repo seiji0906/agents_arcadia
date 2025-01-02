@@ -4,10 +4,9 @@ import json
 from typing import Any, Optional
 from pydantic import BaseModel, ValidationError
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from agents.base_agent import BaseAgent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+import asyncio
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -24,11 +23,16 @@ class TerminalTool:
     def run(self, command: str) -> str:
         logging.info(f"Executing command: {command}")
         try:
-            # subprocess.run に渡される引数を出力
             logging.info("###################################")
             logging.info(f"subprocess.run args: command={command}, shell=True, capture_output=True, text=True, check=True")
             logging.info("###################################")
-            process = subprocess.run(command, shell=True, capture_output=True, text=True, check=True)
+            process = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                check=True
+            )
             logging.info(f"Command output: {process.stdout}")
             return process.stdout
         except subprocess.CalledProcessError as e:
@@ -38,16 +42,21 @@ class TerminalTool:
 class TerminalAgent(BaseAgent):
     def __init__(self, llm=None, tools=None):
         super().__init__(llm, tools)
+        self.prompt = ChatPromptTemplate.from_messages([
+            ("system", "あなたはターミナルコマンドを実行するエージェントです。ユーザーの指示に従って、適切なターミナルコマンドを生成し、以下のJSON形式で出力してください。\n\n```json\n{\"command\": \"生成するコマンド\"}\n```"),
+            MessagesPlaceholder(variable_name="messages")
+        ])
 
     def run(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
         logging.info("TerminalAgent.run開始")
+        # logging.debug(f"Input: {input}")
 
-        # inputが文字列の場合、直接コマンドとして扱う
         if isinstance(input, str):
             logging.info(f"直接実行するコマンド: {input}")
             terminal_tool = next((t for t in (self.tools or []) if t.name == "terminal"), None)
             if terminal_tool:
-                return terminal_tool.run(input) # ここでコマンドが実行される
+                logging.debug("TerminalTool.run を呼び出します。")
+                return terminal_tool.run(input)  # ここでコマンドが実行される
             else:
                 logging.warning("TerminalToolが見つかりませんでした。コマンド実行スキップ。")
                 return ""
@@ -59,6 +68,5 @@ class TerminalAgent(BaseAgent):
             return ""
 
     async def arun(self, input: Any, config: Optional[RunnableConfig] = None) -> str:
-        # 非同期バージョンは同期処理を呼び出すか、実装を分ける
         logging.info("TerminalAgent.arun開始")
-        return self.run(input, config)
+        return await asyncio.to_thread(self.run, input, config)
